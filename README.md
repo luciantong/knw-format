@@ -16,7 +16,7 @@ A `.knw` file is not an app. It is not a chatbot. It is a document — readable 
 
 The difference between a `.knw` file and a PDF:
 
-| | PDF | .ai |
+| | PDF | .knw |
 |---|---|---|
 | Portable | ✓ | ✓ |
 | Human readable | ✓ | ✓ |
