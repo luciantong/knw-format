@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KNW Knowledge Graph Format",
+  "version": "1.0",
+  "description": "Schema for .knw knowledge graph files",
+  "type": "object",
+  "required": [
+    "format",
+    "id",
+    "content",
+    "ontology"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "knw/1.0"
+    },
+    "id": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "ontology": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "type",
+          "relation",
+          "target",
+          "definition"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "relation": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "definition": {
+            "type": "string"
+          },
+          "external": {
+            "type": "string",
+            "format": "uri"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "embeddings": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_read": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "read_count": {
+          "type": "integer"
+        },
+        "linked_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "delta": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "note",
+              "resolved"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "contradiction",
+                  "extension",
+                  "correction"
+                ]
+              },
+              "file": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              },
+              "resolved": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
