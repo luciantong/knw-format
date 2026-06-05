@@ -98,7 +98,7 @@ The `.knw` format borrows from established ontology standards (OWL, RDF) but use
 ```python
 from knw_format import KnwDocument
 
-doc = KnwDocument.load("my-document.ai")
+doc = KnwDocument.load("my-document.knw")
 
 print(doc.content)           # raw markdown text
 print(doc.ontology.nodes)    # list of ontological concepts
@@ -223,7 +223,7 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md). The most valuable contributions right
 
 This specification was initiated by Lucian Tong. It is not owned by any company. It is dedicated to the public domain of ideas.
 
-*"The goal is a document format that makes humans smarter over time — not just informed in the moment."*
+*"Why read in 2d, when you can understand in layers?"*
 
 ---
 
