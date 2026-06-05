@@ -1,0 +1,30 @@
+{
+  "format": "knw/1.0",
+  "id": "test-doc",
+  "content": "# Test\n\nThis is a smoke test.",
+  "ontology": {
+    "document": {
+      "type": "concept",
+      "relation": "references",
+      "target": "knowledge",
+      "definition": "Stub ontology node generated without LLM."
+    }
+  },
+  "embeddings": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "memory": {
+    "created": "2026-06-05T05:15:28.573714+00:00",
+    "last_read": "2026-06-05T05:15:28.573714+00:00",
+    "read_count": 0,
+    "linked_files": [],
+    "delta": []
+  }
+}

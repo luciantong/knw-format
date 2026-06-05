@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>.knw Editor</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0a;--bg2:#111;--bg3:#161616;--bg4:#1c1c1c;
+  --border:#2a2a2a;--border2:#333;
+  --text:#e8e8e8;--text2:#999;--text3:#555;
+  --blue:#3b82f6;--blue-dim:rgba(59,130,246,0.12);
+  --yellow-dim:rgba(250,204,21,0.18);
+  --green-dim:rgba(34,197,94,0.15);
+  --purple-dim:rgba(168,85,247,0.15);
+  --radius:14px;--radius-sm:8px;--radius-xs:6px;
+  --font:-apple-system,BlinkMacSystemFont,'Inter','SF Pro Text',sans-serif;
+  --mono:'SF Mono','Fira Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
+
+/* ── Layout ── */
+.shell{display:grid;grid-template-rows:48px 1fr;grid-template-columns:1fr 320px;height:100vh;overflow:hidden}
+.titlebar{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid var(--border);background:rgba(10,10,10,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);position:relative;z-index:10}
+.editor-col{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
+.sidebar{display:flex;flex-direction:column;overflow:hidden;background:var(--bg2)}
+
+/* ── Titlebar ── */
+.tb-logo{font-size:13px;font-weight:600;letter-spacing:-.2px;color:var(--text);display:flex;align-items:center;gap:6px}
+.tb-logo span{font-size:11px;font-weight:500;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 6px;letter-spacing:.3px}
+.tb-filename{font-size:13px;color:var(--text2);margin-left:4px}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:var(--radius-xs);border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:12px;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:hover{background:var(--bg3);color:var(--text);border-color:var(--border2)}
+.btn-primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn-primary:hover{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn svg,.btn-icon svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+.file-load{display:none}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;gap:4px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.toolbar-sep{width:1px;height:16px;background:var(--border);margin:0 4px}
+.hl-btn{width:22px;height:22px;border-radius:4px;border:none;cursor:pointer;transition:transform .1s}
+.hl-btn:hover{transform:scale(1.15)}
+.hl-yellow{background:rgba(250,204,21,0.55)}
+.hl-green{background:rgba(34,197,94,0.45)}
+.hl-purple{background:rgba(168,85,247,0.45)}
+
+/* ── Editor ── */
+.editor-scroll{flex:1;overflow-y:auto;padding:48px 56px}
+.editor-scroll::-webkit-scrollbar{width:4px}
+.editor-scroll::-webkit-scrollbar-track{background:transparent}
+.editor-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+#doc-title{font-size:28px;font-weight:700;color:var(--text);border:none;outline:none;background:transparent;width:100%;margin-bottom:6px;letter-spacing:-.5px;font-family:var(--font)}
+#doc-title::placeholder{color:var(--text3)}
+.doc-meta{font-size:12px;color:var(--text3);margin-bottom:32px;display:flex;gap:16px}
+
+#editor{outline:none;min-height:500px;font-size:15.5px;line-height:1.8;color:var(--text);caret-color:var(--blue)}
+#editor p{margin-bottom:1em}
+#editor h1{font-size:22px;font-weight:700;margin:1.5em 0 .5em;color:var(--text);letter-spacing:-.3px}
+#editor h2{font-size:18px;font-weight:600;margin:1.2em 0 .4em;color:var(--text)}
+#editor h3{font-size:15px;font-weight:600;margin:1em 0 .3em;color:var(--text2)}
+#editor strong{font-weight:600;color:var(--text)}
+#editor em{font-style:italic;color:var(--text2)}
+#editor code{font-family:var(--mono);font-size:13px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:#a78bfa}
+#editor blockquote{border-left:2px solid var(--border2);padding-left:16px;color:var(--text2);font-style:italic}
+#editor ul,#editor ol{padding-left:20px;margin-bottom:1em}
+#editor li{margin-bottom:.3em}
+#editor a{color:var(--blue);text-decoration:none}
+#editor a:hover{text-decoration:underline}
+
+/* highlights */
+.hl-y{background:rgba(250,204,21,0.22);border-radius:3px;padding:1px 0;border-bottom:1.5px solid rgba(250,204,21,0.6);cursor:pointer}
+.hl-g{background:rgba(34,197,94,0.18);border-radius:3px;padding:1px 0;border-bottom:1.5px solid rgba(34,197,94,0.55);cursor:pointer}
+.hl-p{background:rgba(168,85,247,0.18);border-radius:3px;padding:1px 0;border-bottom:1.5px solid rgba(168,85,247,0.55);cursor:pointer}
+
+/* term highlights */
+.term{border-bottom:1px solid rgba(59,130,246,0.45);color:#93c5fd;cursor:pointer;transition:background .15s}
+.term:hover,.term.active{background:rgba(59,130,246,0.1);border-radius:2px}
+
+/* ── Sidebar ── */
+.sidebar-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.stab{flex:1;padding:10px 0;text-align:center;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border:none;background:transparent;transition:color .15s;border-bottom:2px solid transparent;margin-bottom:-1px}
+.stab.active{color:var(--text);border-bottom-color:var(--blue)}
+.stab-panel{display:none;flex:1;overflow-y:auto;padding:16px}
+.stab-panel.active{display:block}
+.stab-panel::-webkit-scrollbar{width:3px}
+.stab-panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* Ontology cards */
+.onto-card{border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:all .2s;background:var(--bg3)}
+.onto-card:hover{border-color:var(--border2);background:var(--bg4);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.onto-card.focused{border-color:rgba(59,130,246,.5);background:rgba(59,130,246,.06)}
+.onto-key{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
+.onto-type{display:inline-block;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.type-concept{background:rgba(59,130,246,.15);color:#93c5fd}
+.type-entity{background:rgba(34,197,94,.15);color:#86efac}
+.type-method{background:rgba(245,158,11,.15);color:#fcd34d}
+.type-relation{background:rgba(168,85,247,.15);color:#c4b5fd}
+.type-event{background:rgba(239,68,68,.15);color:#fca5a5}
+.type-metric{background:rgba(20,184,166,.15);color:#5eead4}
+.onto-def{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px}
+.onto-rel{font-size:11px;color:var(--text3);font-family:var(--mono)}
+
+/* Active detail panel */
+.detail-panel{border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;background:var(--bg4)}
+.detail-panel .dp-type{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px}
+.detail-panel .dp-key{font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px}
+.detail-panel .dp-rel{font-size:12px;color:var(--blue);font-family:var(--mono);margin-bottom:10px}
+.detail-panel .dp-def{font-size:13px;color:var(--text2);line-height:1.6}
+
+/* Memory log */
+.mem-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.mem-item:last-child{border-bottom:none}
+.mem-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.dot-contradiction{background:#fb923c}
+.dot-extension{background:#34d399}
+.dot-reference{background:#60a5fa}
+.dot-update{background:#a78bfa}
+.mem-note{font-size:12px;color:var(--text2);line-height:1.5}
+.mem-file{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:3px}
+.mem-resolved{text-decoration:line-through;opacity:.5}
+
+/* Annotations panel */
+.ann-item{padding:10px 12px;border-radius:var(--radius-xs);margin-bottom:6px;cursor:pointer;border:1px solid var(--border);transition:border-color .15s}
+.ann-item:hover{border-color:var(--border2)}
+.ann-text{font-size:12px;color:var(--text);margin-bottom:3px;font-style:italic}
+.ann-meta{font-size:11px;color:var(--text3)}
+.ann-y{border-left:3px solid rgba(250,204,21,0.7)}
+.ann-g{border-left:3px solid rgba(34,197,94,0.6)}
+.ann-p{border-left:3px solid rgba(168,85,247,0.6)}
+
+/* Drop zone */
+.drop-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;height:100%;color:var(--text3);text-align:center;padding:40px}
+.drop-icon{width:48px;height:48px;border:1px solid var(--border2);border-radius:12px;display:flex;align-items:center;justify-content:center}
+.drop-zone h2{font-size:16px;font-weight:500;color:var(--text2)}
+.drop-zone p{font-size:13px;line-height:1.6;max-width:320px}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-xs);padding:8px 16px;font-size:13px;color:var(--text);opacity:0;transition:opacity .2s;pointer-events:none;z-index:100}
+.toast.show{opacity:1}
+
+/* Empty state */
+.empty{color:var(--text3);font-size:13px;text-align:center;padding:24px 0}
+
+/* ── Define tooltip ── */
+#define-tooltip{
+  position:fixed;display:none;z-index:200;
+  background:var(--bg4);border:1px solid var(--border2);
+  border-radius:var(--radius-xs);padding:4px 6px;
+  gap:4px;align-items:center;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+#define-tooltip.visible{display:flex}
+.tt-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 10px;border-radius:4px;border:none;
+  font-size:11px;font-weight:500;font-family:var(--font);
+  cursor:pointer;transition:opacity .15s;
+}
+.tt-define{background:var(--blue);color:#fff}
+.tt-define:hover{opacity:.85}
+.tt-hl-y{background:rgba(250,204,21,0.45);color:#92780a}
+.tt-hl-y:hover{opacity:.8}
+.tt-hl-g{background:rgba(34,197,94,0.38);color:#166534}
+.tt-hl-g:hover{opacity:.8}
+.tt-hl-p{background:rgba(168,85,247,0.38);color:#6b21a8}
+.tt-hl-p:hover{opacity:.8}
+
+/* ── Define modal overlay ── */
+#define-modal{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;
+}
+#define-modal.visible{display:flex}
+.modal-box{
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:var(--radius);width:520px;max-width:90vw;
+  overflow:hidden;
+}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--border);
+}
+.modal-head h3{font-size:14px;font-weight:600;color:var(--text)}
+.modal-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;padding:0}
+.modal-close:hover{color:var(--text)}
+.modal-tabs{display:flex;border-bottom:1px solid var(--border)}
+.mtab{
+  flex:1;padding:10px;text-align:center;font-size:12px;font-weight:500;
+  color:var(--text3);background:none;border:none;cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s;
+}
+.mtab.active{color:var(--text);border-bottom-color:var(--blue)}
+.modal-body{padding:20px}
+.modal-panel{display:none}
+.modal-panel.active{display:block}
+
+.selected-text-preview{
+  font-size:12px;color:var(--text2);font-style:italic;
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--radius-xs);padding:8px 12px;
+  margin-bottom:16px;line-height:1.5;
+  max-height:60px;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+}
+
+.field-row{margin-bottom:12px}
+.field-label{font-size:11px;color:var(--text3);margin-bottom:5px;display:block;text-transform:uppercase;letter-spacing:.4px}
+.field-input{
+  width:100%;background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--radius-xs);padding:7px 10px;
+  font-size:13px;color:var(--text);font-family:var(--font);outline:none;
+  transition:border-color .15s;
+}
+.field-input:focus{border-color:rgba(59,130,246,.5)}
+.field-select{appearance:none;-webkit-appearance:none;cursor:pointer}
+textarea.field-input{resize:vertical;min-height:72px;line-height:1.5}
+
+.field-row-two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+
+.ai-status{
+  display:none;align-items:center;gap:8px;
+  font-size:12px;color:var(--text2);margin-bottom:12px;
+  padding:8px 12px;border-radius:var(--radius-xs);
+  background:var(--bg3);border:1px solid var(--border);
+}
+.ai-status.visible{display:flex}
+.spinner{
+  width:14px;height:14px;border:2px solid var(--border2);
+  border-top-color:var(--blue);border-radius:50%;
+  animation:spin .7s linear infinite;flex-shrink:0;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ai-result{
+  display:none;background:var(--bg3);border:1px solid rgba(59,130,246,.3);
+  border-radius:var(--radius-xs);padding:12px;margin-bottom:12px;
+}
+.ai-result.visible{display:block}
+.ai-result-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--blue);margin-bottom:8px}
+.ai-field-preview{font-size:12px;color:var(--text2);margin-bottom:3px}
+.ai-field-preview strong{color:var(--text);font-weight:500}
+
+.modal-footer{
+  display:flex;justify-content:flex-end;gap:8px;
+  padding:14px 20px;border-top:1px solid var(--border);
+}
+
+.onto-card-new{border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.06);animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Titlebar -->
+  <header class="titlebar">
+    <div class="tb-logo">
+      .knw
+      <span>editor</span>
+    </div>
+    <div class="tb-filename" id="tb-filename">untitled</div>
+    <div class="tb-right">
+      <label class="btn" style="cursor:pointer">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Open
+        <input class="file-load" id="file-input" type="file" accept=".knw,.json"/>
+      </label>
+      <button class="btn" onclick="newDoc()">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        New
+      </button>
+      <button class="btn btn-primary" onclick="saveDoc()">
+        <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save .knw
+      </button>
+    </div>
+  </header>
+
+  <!-- Editor column -->
+  <div class="editor-col">
+    <div class="toolbar" id="toolbar" style="display:none">
+      <span style="font-size:11px;color:var(--text3);margin-right:4px">Highlight</span>
+      <button class="hl-btn hl-yellow" title="Yellow" onclick="highlight('y')"></button>
+      <button class="hl-btn hl-green"  title="Green"  onclick="highlight('g')"></button>
+      <button class="hl-btn hl-purple" title="Purple" onclick="highlight('p')"></button>
+      <div class="toolbar-sep"></div>
+      <button class="btn" style="font-size:11px;padding:3px 8px" onclick="removeHighlight()" title="Remove highlight from selection">Remove</button>
+      <div class="toolbar-sep"></div>
+      <span style="font-size:11px;color:var(--text3)" id="word-count"></span>
+    </div>
+
+    <div class="editor-scroll" id="editor-scroll">
+      <!-- Drop / empty state -->
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        </div>
+        <h2>Open a .knw file</h2>
+        <p>Click <strong>Open</strong> in the toolbar, or drop a <code>.knw</code> file anywhere in this window to start reading and editing.</p>
+        <button class="btn btn-primary" onclick="loadExample()">Load example</button>
+      </div>
+
+      <!-- Doc area (hidden until loaded) -->
+      <div id="doc-area" style="display:none;max-width:680px;margin:0 auto">
+        <input id="doc-title" placeholder="Untitled document" spellcheck="false"/>
+        <div class="doc-meta" id="doc-meta"></div>
+        <div id="editor" contenteditable="true" spellcheck="true"></div>
+        <div id="delta-section" style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:12px">Memory log</div>
+          <div id="delta-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-tabs">
+      <button class="stab active" onclick="switchTab('ontology',this)">Ontology</button>
+      <button class="stab" onclick="switchTab('memory',this)">Memory</button>
+      <button class="stab" onclick="switchTab('annotations',this)">Notes</button>
+    </div>
+
+    <div class="stab-panel active" id="tab-ontology">
+      <div id="active-detail" style="display:none" class="detail-panel">
+        <div class="dp-type" id="dp-type"></div>
+        <div class="dp-key" id="dp-key"></div>
+        <div class="dp-rel" id="dp-rel"></div>
+        <div class="dp-def" id="dp-def"></div>
+      </div>
+      <div id="ontology-list"><div class="empty">No file loaded.</div></div>
+    </div>
+
+    <div class="stab-panel" id="tab-memory">
+      <div id="memory-list"><div class="empty">No file loaded.</div></div>
+    </div>
+
+    <div class="stab-panel" id="tab-annotations">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Highlighted passages in this document.</div>
+      <div id="annotations-list"><div class="empty">No highlights yet.</div></div>
+    </div>
+  </aside>
+</div>
+
+<!-- Selection tooltip -->
+<div id="define-tooltip">
+  <button class="tt-btn tt-define" onclick="openDefineModal()">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    Define
+  </button>
+  <button class="tt-btn tt-hl-y" onclick="highlight('y');hideTooltip()" title="Yellow">●</button>
+  <button class="tt-btn tt-hl-g" onclick="highlight('g');hideTooltip()" title="Green">●</button>
+  <button class="tt-btn tt-hl-p" onclick="highlight('p');hideTooltip()" title="Purple">●</button>
+</div>
+
+<!-- Define modal -->
+<div id="define-modal" onclick="if(event.target===this)closeDefineModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Define term</h3>
+      <button class="modal-close" onclick="closeDefineModal()">&#x2715;</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="mtab active" id="mtab-ai" onclick="switchMTab('ai',this)">&#x25B6; AI Define</button>
+      <button class="mtab" id="mtab-manual" onclick="switchMTab('manual',this)">&#x270E; Manual</button>
+    </div>
+    <div class="modal-panel active" id="mpanel-ai">
+      <div class="modal-body">
+        <div class="selected-text-preview" id="ai-preview-text"></div>
+        <div class="ai-status" id="ai-status">
+          <div class="spinner"></div>
+          <span id="ai-status-msg">Asking local Ollama model&#x2026;</span>
+        </div>
+        <div class="ai-result" id="ai-result">
+          <div class="ai-result-label">Suggested ontology node</div>
+          <div id="ai-result-content"></div>
+        </div>
+        <div class="field-row">
+          <label class="field-label">Ollama model</label>
+          <input class="field-input" id="ai-model" value="llama3" placeholder="llama3, mistral, phi3&#x2026;" style="width:200px"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeDefineModal()">Cancel</button>
+        <button class="btn" onclick="runAIDefine()" id="ai-run-btn">&#x25B6; Run AI Define</button>
+        <button class="btn btn-primary" id="ai-accept-btn" style="display:none" onclick="acceptAIResult()">Add to ontology</button>
+      </div>
+    </div>
+    <div class="modal-panel" id="mpanel-manual">
+      <div class="modal-body">
+        <div class="selected-text-preview" id="manual-preview-text"></div>
+        <div class="field-row">
+          <label class="field-label">Term key (kebab-case)</label>
+          <input class="field-input" id="m-key" placeholder="e.g. payments-infrastructure" spellcheck="false"/>
+        </div>
+        <div class="field-row">
+          <label class="field-label">Definition</label>
+          <textarea class="field-input" id="m-def" placeholder="A concise definition in context of this document&#x2026;"></textarea>
+        </div>
+        <div class="field-row-two">
+          <div>
+            <label class="field-label">Type</label>
+            <select class="field-input field-select" id="m-type">
+              <option value="concept">concept</option><option value="entity">entity</option>
+              <option value="method">method</option><option value="relation">relation</option>
+              <option value="event">event</option><option value="metric">metric</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Relation</label>
+            <select class="field-input field-select" id="m-relation">
+              <option value="isA">isA</option><option value="enables">enables</option>
+              <option value="opposes">opposes</option><option value="quantifies">quantifies</option>
+              <option value="causes">causes</option><option value="requires">requires</option>
+              <option value="correlates">correlates</option><option value="partOf">partOf</option>
+              <option value="references">references</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="field-label">Target concept</label>
+          <input class="field-input" id="m-target" placeholder="e.g. commerce, intrinsic-value&#x2026;" spellcheck="false"/>
+        </div>
+        <div class="field-row">
+          <label class="field-label">Aliases (comma-separated, optional)</label>
+          <input class="field-input" id="m-aliases" placeholder="e.g. dcf, discounted cash flow"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeDefineModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="acceptManualResult()">Add to ontology</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+
+<script>
+let KNW = null;
+let annotations = [];
+let hlCounter = 0;
+const EXAMPLE = {"format":"knw/1.0","id":"nuvei-investment-thesis","content":"# Nuvei — Investment Thesis\n\nNuvei is a Montreal-based **payments infrastructure** company serving merchants in 200+ markets. The core thesis is that Nuvei's modular platform creates compounding switching costs as merchants activate more modules over time.\n\nThe DCF suggests ~$8.2B fair value assuming 12% terminal revenue growth and 28% EBITDA margins, versus the Advent International take-private at $6.3B. The spread implies meaningful upside if margin expansion targets are met.\n\nKey risk: the integration of Paya and Till Payments introduces execution risk. The regulated gaming vertical — roughly 20% of revenue — is also exposed to regulatory shifts in key markets.","ontology":{"nuvei":{"type":"entity","relation":"isA","target":"payments-platform","definition":"Montreal-based global payments technology company. Founded 2003. Processed $203B in total volume in FY2023."},"payments-infrastructure":{"type":"concept","relation":"enables","target":"commerce","definition":"The systems, rails, and APIs that move money between buyers and sellers across geographies and currencies."},"modular-platform":{"type":"concept","relation":"opposes","target":"bundled-saas","definition":"Architecture where acquiring, issuing, payouts, and fraud modules can be enabled independently."},"dcf-valuation":{"type":"method","relation":"quantifies","target":"intrinsic-value","definition":"Discounted Cash Flow — projects free cash flows and discounts to present value using WACC.","aliases":["dcf","discounted cash flow"]},"advent-international":{"type":"entity","relation":"partOf","target":"nuvei","definition":"Global PE firm. Took Nuvei private at $6.3B enterprise value in 2024."},"integration-risk":{"type":"concept","relation":"causes","target":"execution-risk","definition":"Complexity introduced by the acquisition of Paya ($1.3B, 2023) and Till Payments (2024)."},"regulated-gaming":{"type":"concept","relation":"correlates","target":"regulatory-risk","definition":"~20% of Nuvei revenue. Exposed to jurisdiction-by-jurisdiction licensing."}},"embeddings":[0.231,0.847,0.102,0.445,0.318,0.671,0.094,0.523],"memory":{"created":"2026-06-04T10:00:00Z","last_read":"2026-06-04T14:22:00Z","read_count":3,"linked_files":["payments-sector-overview","ca-cib-markets-research"],"delta":[{"type":"contradiction","file":"payments-sector-overview","note":"DCF terminal growth assumption differs — 12% here vs 9% in sector overview.","resolved":false},{"type":"extension","file":"ca-cib-markets-research","note":"Regulated gaming risk here extends the market risk section from CA CIB prep notes.","resolved":true}]}};
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
+
+function switchTab(name,el){
+  document.querySelectorAll('.stab').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.stab-panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+function loadExample(){loadKnw(EXAMPLE,'example.knw')}
+
+document.getElementById('file-input').addEventListener('change',ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{try{loadKnw(JSON.parse(r.result),f.name)}catch(e){toast('Parse error: '+e.message)}};
+  r.readAsText(f);
+  ev.target.value='';
+});
+
+window.addEventListener('dragover',e=>{e.preventDefault()});
+window.addEventListener('drop',e=>{
+  e.preventDefault();
+  const f=e.dataTransfer.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{try{loadKnw(JSON.parse(r.result),f.name)}catch(e){toast('Parse error: '+e.message)}};
+  r.readAsText(f);
+});
+
+function loadKnw(obj,filename){
+  KNW=obj; annotations=obj.annotations||[];
+  document.getElementById('drop-zone').style.display='none';
+  document.getElementById('doc-area').style.display='block';
+  document.getElementById('toolbar').style.display='flex';
+  document.getElementById('tb-filename').textContent=filename||obj.id||'untitled';
+  document.getElementById('doc-title').value=obj.title||(obj.id||'').replace(/-/g,' ');
+  buildMeta(obj);
+  renderContent(obj);
+  renderOntology(obj.ontology||{});
+  renderMemory(obj.memory||{});
+  renderAnnotations();
+  updateWordCount();
+}
+
+function buildMeta(obj){
+  const m=obj.memory||{};
+  const parts=[];
+  if(m.created) parts.push('Created '+m.created.slice(0,10));
+  if(m.read_count!==undefined) parts.push('Read '+m.read_count+'x');
+  if(obj.format) parts.push(obj.format);
+  document.getElementById('doc-meta').innerHTML=parts.map(p=>`<span>${p}</span>`).join('');
+}
+
+function renderContent(obj){
+  const ed=document.getElementById('editor');
+  let html=marked.parse(obj.content||'');
+  html=highlightTerms(html,obj.ontology||{});
+  ed.innerHTML=html;
+  restoreAnnotationSpans();
+  ed.addEventListener('input',updateWordCount);
+}
+
+function highlightTerms(html,ontology){
+  const phrases=[];
+  Object.keys(ontology).forEach(k=>{
+    const n=ontology[k];
+    phrases.push({text:k.replace(/-/g,' '),key:k});
+    phrases.push({text:k,key:k});
+    if(Array.isArray(n.aliases)) n.aliases.forEach(a=>phrases.push({text:a,key:k}));
+  });
+  phrases.sort((a,b)=>b.text.length-a.text.length);
+  let out=html;
+  const map={};let c=0;
+  phrases.forEach(p=>{
+    if(!p.text||p.text.length<3) return;
+    const esc=p.text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    out=out.replace(new RegExp('\\b'+esc+'\\b','gi'),m=>{
+      const id='__T'+(c++);
+      map[id]=`<span class="term" data-key="${p.key}">${m}</span>`;
+      return id;
+    });
+  });
+  Object.keys(map).forEach(id=>{ out=out.replace(new RegExp(id,'g'),map[id]); });
+  document.getElementById('editor').addEventListener('click',onTermClick,{once:false});
+  return out;
+}
+
+function onTermClick(e){
+  const t=e.target.closest('.term'); if(!t) return;
+  const key=t.dataset.key;
+  focusOntologyNode(key);
+}
+
+document.getElementById('editor').addEventListener('click',onTermClick);
+
+function focusOntologyNode(key){
+  if(!KNW||!KNW.ontology||!KNW.ontology[key]) return;
+  const n=KNW.ontology[key];
+  document.getElementById('active-detail').style.display='block';
+  document.getElementById('dp-type').textContent=n.type;
+  document.getElementById('dp-key').textContent=key.replace(/-/g,' ');
+  document.getElementById('dp-rel').textContent=n.relation+' → '+n.target;
+  document.getElementById('dp-def').textContent=n.definition;
+  document.querySelectorAll('.onto-card').forEach(c=>c.classList.toggle('focused',c.dataset.key===key));
+  document.querySelector('.onto-card[data-key="'+key+'"]')?.scrollIntoView({behavior:'smooth',block:'nearest'});
+  // switch to ontology tab
+  document.querySelectorAll('.stab')[0].click();
+  // highlight term occurrences
+  document.querySelectorAll('.term').forEach(t=>{t.classList.toggle('active',t.dataset.key===key)});
+}
+
+function renderOntology(ontology){
+  const el=document.getElementById('ontology-list');
+  el.innerHTML='';
+  if(!Object.keys(ontology).length){el.innerHTML='<div class="empty">No ontology nodes.</div>';return}
+  Object.entries(ontology).forEach(([k,n])=>{
+    const d=document.createElement('div');
+    d.className='onto-card'; d.dataset.key=k;
+    d.innerHTML=`<div class="onto-key">${k.replace(/-/g,' ')}</div><span class="onto-type type-${n.type||'concept'}">${n.type||'concept'}</span><div class="onto-def">${n.definition}</div><div class="onto-rel">${n.relation} → ${n.target}</div>`;
+    d.addEventListener('click',()=>focusOntologyNode(k));
+    el.appendChild(d);
+  });
+}
+
+function renderMemory(mem){
+  const el=document.getElementById('memory-list');
+  const deltas=mem.delta||[];
+  const links=mem.linked_files||[];
+  let html='';
+  if(links.length){
+    html+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:8px">Linked files</div>`;
+    links.forEach(l=>{html+=`<div style="font-size:12px;color:var(--blue);font-family:var(--mono);padding:4px 0;border-bottom:1px solid var(--border)">${l}.knw</div>`});
+    html+='<div style="height:16px"></div>';
+  }
+  if(deltas.length){
+    html+=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:8px">Deltas</div>`;
+    deltas.forEach(d=>{
+      const cls='dot-'+d.type;
+      html+=`<div class="mem-item"><div class="mem-dot ${cls}"></div><div><div class="mem-note ${d.resolved?'mem-resolved':''}">${d.note}</div><div class="mem-file">${d.file} · ${d.type}${d.resolved?' · resolved':''}</div></div></div>`;
+    });
+  }
+  if(!html) html='<div class="empty">No memory data.</div>';
+  el.innerHTML=html;
+  // delta section in editor
+  const dl=document.getElementById('delta-list');
+  dl.innerHTML='';
+  deltas.forEach(d=>{
+    const colors={'contradiction':'#fb923c','extension':'#34d399','reference':'#60a5fa','update':'#a78bfa'};
+    const c=colors[d.type]||'#888';
+    const di=document.createElement('div');
+    di.style.cssText=`display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)`;
+    di.innerHTML=`<div style="width:3px;border-radius:2px;background:${c};flex-shrink:0;border-radius:2px"></div><div><div style="font-size:13px;color:var(--text2);line-height:1.5${d.resolved?';text-decoration:line-through;opacity:.5':''}">${d.note}</div><div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px">${d.file} · ${d.type}</div></div>`;
+    dl.appendChild(di);
+  });
+}
+
+function renderAnnotations(){
+  const el=document.getElementById('annotations-list');
+  if(!annotations.length){el.innerHTML='<div class="empty">No highlights yet.</div>';return}
+  el.innerHTML='';
+  annotations.forEach((a,i)=>{
+    const d=document.createElement('div');
+    d.className=`ann-item ann-${a.color}`;
+    d.innerHTML=`<div class="ann-text">"${a.text.slice(0,80)}${a.text.length>80?'…':''}"</div><div class="ann-meta">${a.color==='y'?'Yellow':a.color==='g'?'Green':'Purple'} · ${new Date(a.ts).toLocaleTimeString()}</div>`;
+    d.addEventListener('click',()=>{
+      const span=document.querySelector('[data-ann-id="'+a.id+'"]');
+      if(span){span.scrollIntoView({behavior:'smooth',block:'center'});span.style.outline='2px solid rgba(255,255,255,.3)';setTimeout(()=>span.style.outline='',800)}
+    });
+    el.appendChild(d);
+  });
+}
+
+function highlight(color){
+  const sel=window.getSelection();
+  if(!sel||sel.isCollapsed||!sel.rangeCount) return;
+  const range=sel.getRangeAt(0);
+  const ed=document.getElementById('editor');
+  if(!ed.contains(range.commonAncestorContainer)) return;
+  const text=sel.toString().trim();
+  if(!text) return;
+  const id='hl-'+(hlCounter++);
+  const span=document.createElement('span');
+  span.className='hl-'+color;
+  span.dataset.annId=id;
+  span.dataset.color=color;
+  try{
+    range.surroundContents(span);
+    const ann={id,color,text,ts:Date.now()};
+    annotations.push(ann);
+    renderAnnotations();
+    sel.removeAllRanges();
+    toast('Highlight added');
+  }catch(e){
+    // partial selection across elements — extract and rewrap
+    const frag=range.extractContents();
+    span.appendChild(frag);
+    range.insertNode(span);
+    const ann={id,color,text,ts:Date.now()};
+    annotations.push(ann);
+    renderAnnotations();
+    sel.removeAllRanges();
+    toast('Highlight added');
+  }
+}
+
+function removeHighlight(){
+  const sel=window.getSelection();
+  if(!sel||!sel.rangeCount) return;
+  const range=sel.getRangeAt(0);
+  const container=range.commonAncestorContainer;
+  const span=container.nodeType===3?container.parentElement:container;
+  if(span&&(span.classList.contains('hl-y')||span.classList.contains('hl-g')||span.classList.contains('hl-p'))){
+    const id=span.dataset.annId;
+    const parent=span.parentNode;
+    while(span.firstChild) parent.insertBefore(span.firstChild,span);
+    parent.removeChild(span);
+    annotations=annotations.filter(a=>a.id!==id);
+    renderAnnotations();
+    toast('Highlight removed');
+  }
+}
+
+function restoreAnnotationSpans(){
+  // already done via HTML injection if loaded from saved file
+}
+
+function updateWordCount(){
+  const ed=document.getElementById('editor');
+  const words=ed.innerText.trim().split(/\s+/).filter(Boolean).length;
+  document.getElementById('word-count').textContent=words+' words';
+}
+
+function getCurrentContent(){
+  const ed=document.getElementById('editor').cloneNode(true);
+  // strip highlights but preserve text
+  ed.querySelectorAll('.hl-y,.hl-g,.hl-p').forEach(s=>{
+    const t=document.createTextNode(s.textContent);
+    s.parentNode.replaceChild(t,s);
+  });
+  // strip term spans
+  ed.querySelectorAll('.term').forEach(s=>{
+    const t=document.createTextNode(s.textContent);
+    s.parentNode.replaceChild(t,s);
+  });
+  return ed.innerHTML
+    .replace(/<\/(p|h[1-6]|li|blockquote)>/gi,(m,tag)=>'\n')
+    .replace(/<br\s*\/?>/gi,'\n')
+    .replace(/<[^>]+>/g,'')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+    .replace(/\n{3,}/g,'\n\n').trim();
+}
+
+function newDoc(){
+  KNW={"format":"knw/1.0","id":"untitled","content":"","ontology":{},"embeddings":[]};
+  annotations=[];
+  loadKnw(KNW,'untitled.knw');
+  document.getElementById('editor').innerHTML='';
+  document.getElementById('doc-title').value='';
+  toast('New document');
+}
+
+function saveDoc(){
+  if(!KNW){toast('No document loaded');return}
+  const out={
+    ...KNW,
+    id:document.getElementById('doc-title').value.trim().toLowerCase().replace(/\s+/g,'-')||KNW.id,
+    title:document.getElementById('doc-title').value.trim()||KNW.title,
+    content:getCurrentContent(),
+    ontology:KNW.ontology||{},
+    annotations:annotations,
+    "x-saved":new Date().toISOString()
+  };
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=(out.id||'document')+'.knw'; a.click();
+  URL.revokeObjectURL(url);
+  toast('Saved as '+a.download);
+}
+
+// ── DEFINE HIGHLIGHT SYSTEM ──────────────────────────────────────────────────
+
+let _savedRange = null;
+let _selectedText = '';
+let _aiParsed = null;
+
+// Show tooltip on mouseup inside editor
+document.addEventListener('mouseup', e => {
+  const ed = document.getElementById('editor');
+  const tt = document.getElementById('define-tooltip');
+  if (!ed || !ed.contains(e.target)) { hideTooltip(); return; }
+  setTimeout(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) { hideTooltip(); return; }
+    const text = sel.toString().trim();
+    if (text.length < 2) { hideTooltip(); return; }
+    _selectedText = text;
+    _savedRange = sel.getRangeAt(0).cloneRange();
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    tt.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 260) + 'px';
+    tt.style.top  = (rect.top + window.scrollY - 44) + 'px';
+    tt.classList.add('visible');
+  }, 10);
+});
+
+document.addEventListener('mousedown', e => {
+  const tt = document.getElementById('define-tooltip');
+  const modal = document.getElementById('define-modal');
+  if (!tt.contains(e.target) && !modal.contains(e.target)) hideTooltip();
+});
+
+function hideTooltip() {
+  document.getElementById('define-tooltip').classList.remove('visible');
+}
+
+function openDefineModal() {
+  hideTooltip();
+  if (!_selectedText) return;
+  // reset state
+  _aiParsed = null;
+  document.getElementById('ai-result').classList.remove('visible');
+  document.getElementById('ai-status').classList.remove('visible');
+  document.getElementById('ai-accept-btn').style.display = 'none';
+  document.getElementById('ai-run-btn').style.display = 'inline-flex';
+  // populate previews
+  const preview = '"' + _selectedText.slice(0, 120) + (_selectedText.length > 120 ? '…' : '') + '"';
+  document.getElementById('ai-preview-text').textContent = preview;
+  document.getElementById('manual-preview-text').textContent = preview;
+  // pre-fill key from selected text
+  const autoKey = _selectedText.toLowerCase().trim().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').slice(0,40);
+  document.getElementById('m-key').value = autoKey;
+  document.getElementById('m-def').value = '';
+  document.getElementById('m-target').value = '';
+  document.getElementById('m-aliases').value = '';
+  // show on AI tab by default
+  switchMTab('ai', document.getElementById('mtab-ai'));
+  document.getElementById('define-modal').classList.add('visible');
+}
+
+function closeDefineModal() {
+  document.getElementById('define-modal').classList.remove('visible');
+  _aiParsed = null;
+}
+
+function switchMTab(name, el) {
+  document.querySelectorAll('.mtab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.modal-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('mpanel-' + name).classList.add('active');
+}
+
+// ── AI Define via Ollama ─────────────────────────────────────────────────────
+// Golden schema — every response must conform to this exactly
+const GOLDEN_SCHEMA = {
+  REQUIRED: ['key','type','relation','target','definition'],
+  VALID_TYPES: ['concept','entity','method','relation','event','metric'],
+  VALID_RELS:  ['isA','enables','opposes','quantifies','causes','requires','correlates','partOf','references'],
+};
+
+const OLLAMA_TIMEOUT_MS = 45000; // 45s — enough for cold Llama 2 start
+
+// ── Step 1: Health check ──────────────────────────────────────────────────────
+async function checkOllamaHealth(baseUrl) {
+  // /api/tags is a lightweight endpoint — no model load, instant response
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 3000);
+  try {
+    const r = await fetch(baseUrl + '/api/tags', { signal: ctrl.signal });
+    clearTimeout(tid);
+    return r.ok;
+  } catch {
+    clearTimeout(tid);
+    return false;
+  }
+}
+
+// ── Step 2: Sanitize raw model output → pure JSON string ──────────────────────
+function sanitizeModelResponse(raw) {
+  if (!raw || typeof raw !== 'string') throw new Error('Empty response from model');
+
+  let s = raw.trim();
+
+  // Strip all markdown code fences regardless of language tag
+  // Handles: ```json, ```JSON, ```, ` ``` ` with or without newlines
+  s = s.replace(/^```[a-zA-Z]*\s*/gm, '').replace(/```\s*$/gm, '').trim();
+
+  // Strip common Llama 2 conversational preamble patterns
+  // e.g. "Sure! Here is the JSON:" / "Here's the ontology node:"
+  s = s.replace(/^[^{]*?(?=\{)/s, '').trim();
+
+  // Strip trailing prose after the closing brace
+  // Find the last } and cut everything after it
+  const lastBrace = s.lastIndexOf('}');
+  if (lastBrace !== -1) s = s.slice(0, lastBrace + 1).trim();
+
+  if (!s.startsWith('{')) throw new Error('No JSON object found in model response');
+  return s;
+}
+
+// ── Step 3: Extract JSON with brace-depth counting (handles nested objects) ───
+function extractJsonObject(sanitized) {
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < sanitized.length; i++) {
+    if (sanitized[i] === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (sanitized[i] === '}') {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        return sanitized.slice(start, i + 1);
+      }
+    }
+  }
+  throw new Error('Unbalanced braces — JSON object is malformed');
+}
+
+// ── Step 4: Validate parsed object against Golden Schema ─────────────────────
+function validateAgainstSchema(parsed) {
+  // Check required fields
+  const missing = GOLDEN_SCHEMA.REQUIRED.filter(f => !parsed[f] || String(parsed[f]).trim() === '');
+  if (missing.length) {
+    throw new Error(`Model omitted required fields: ${missing.join(', ')}`);
+  }
+
+  // Coerce type — silently fix if close, throw if unrecognisable
+  const typeRaw = parsed.type.toLowerCase().trim();
+  if (!GOLDEN_SCHEMA.VALID_TYPES.includes(typeRaw)) {
+    // fuzzy match: 'Entity' → 'entity', 'CONCEPT' → 'concept'
+    const match = GOLDEN_SCHEMA.VALID_TYPES.find(t => typeRaw.includes(t));
+    if (match) parsed.type = match;
+    else throw new Error(`Invalid type "${parsed.type}". Valid: ${GOLDEN_SCHEMA.VALID_TYPES.join(', ')}`);
+  } else {
+    parsed.type = typeRaw;
+  }
+
+  // Coerce relation — same fuzzy approach
+  const relRaw = parsed.relation.trim();
+  if (!GOLDEN_SCHEMA.VALID_RELS.includes(relRaw)) {
+    const match = GOLDEN_SCHEMA.VALID_RELS.find(r => relRaw.toLowerCase().includes(r.toLowerCase()));
+    if (match) parsed.relation = match;
+    else parsed.relation = 'references'; // safe fallback, not a throw
+  }
+
+  // Sanitize key → strict kebab-case
+  parsed.key = parsed.key.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 50);
+  if (!parsed.key) throw new Error('Could not derive a valid key from model response');
+
+  // Ensure aliases is always an array
+  if (!Array.isArray(parsed.aliases)) {
+    parsed.aliases = parsed.aliases ? [String(parsed.aliases)] : [];
+  }
+  parsed.aliases = parsed.aliases.map(a => String(a).trim()).filter(Boolean);
+
+  return parsed;
+}
+
+// ── Step 5: Build prompt — two variants for retry ─────────────────────────────
+function buildPrompt(text, isRetry = false) {
+  if (!isRetry) {
+    return `You are an ontology extraction engine. Your only job is to return a single JSON object.
+
+Text to define: "${text}"
+
+Return ONLY this JSON structure, with no other text, no markdown, no explanation:
+{"key":"kebab-case-id","type":"concept","relation":"isA","target":"parent-concept","definition":"One sentence definition.","aliases":[]}
+
+Valid types: concept, entity, method, relation, event, metric
+Valid relations: isA, enables, opposes, quantifies, causes, requires, correlates, partOf, references
+
+JSON only:`;
+  }
+  // Retry prompt — more explicit, forces compliance
+  return `STRICT INSTRUCTION: Return ONLY a raw JSON object. No prose. No markdown. No backticks.
+
+The text to define is: "${text}"
+
+Your response must be exactly this shape and nothing else:
+{"key":"string","type":"string","relation":"string","target":"string","definition":"string","aliases":[]}
+
+Fill in the values. Return the JSON object immediately.`;
+}
+
+// ── Main orchestrator ─────────────────────────────────────────────────────────
+async function runAIDefine() {
+  const model    = (document.getElementById('ai-model').value.trim() || 'llama2');
+  const baseUrl  = 'http://localhost:11434';
+  const status   = document.getElementById('ai-status');
+  const statusMsg= document.getElementById('ai-status-msg');
+  const spinner  = document.querySelector('#ai-status .spinner');
+  const resultBox= document.getElementById('ai-result');
+  const runBtn   = document.getElementById('ai-run-btn');
+  const acceptBtn= document.getElementById('ai-accept-btn');
+
+  // Reset UI state cleanly on every invocation
+  spinner.style.display = 'block';
+  status.classList.add('visible');
+  resultBox.classList.remove('visible');
+  runBtn.style.display = 'none';
+  acceptBtn.style.display = 'none';
+  _aiParsed = null;
+
+  const setError = (msg, allowRetry = true) => {
+    spinner.style.display = 'none';
+    statusMsg.textContent = msg;
+    if (allowRetry) {
+      runBtn.style.display = 'inline-flex';
+      runBtn.textContent = '↺ Retry';
+    }
+  };
+
+  // ── Health check first — gives a clear error vs silent CORS failure ──────
+  statusMsg.textContent = 'Checking Ollama connection…';
+  const alive = await checkOllamaHealth(baseUrl);
+  if (!alive) {
+    setError('Cannot reach Ollama at localhost:11434. Run: OLLAMA_ORIGINS="*" ollama serve', false);
+    // Show fix instructions inline
+    resultBox.classList.add('visible');
+    document.getElementById('ai-result-content').innerHTML = `
+      <div class="ai-result-label" style="color:#fb923c">Connection failed</div>
+      <div class="ai-field-preview" style="font-family:var(--mono);font-size:11px;line-height:1.8">
+        <div>1. Open a terminal</div>
+        <div>2. Run: <strong>OLLAMA_ORIGINS="*" ollama serve</strong></div>
+        <div>3. Or: <strong>python3 -m http.server 8080</strong> and open via localhost</div>
+        <div style="margin-top:6px;color:var(--text3)">Then click Retry ↺</div>
+      </div>`;
+    runBtn.style.display = 'inline-flex';
+    runBtn.textContent = '↺ Retry';
+    return;
+  }
+
+  // ── Attempt 1 ──────────────────────────────────────────────────────────────
+  statusMsg.textContent = `Running ${model}… (may take 10–30s on first call)`;
+  let parsed = null;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    if (attempt === 2) statusMsg.textContent = 'Schema mismatch — retrying with stricter prompt…';
+
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), OLLAMA_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(baseUrl + '/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model,
+          prompt: buildPrompt(_selectedText, attempt === 2),
+          stream: false,
+          options: {
+            temperature: 0.1,  // low temp = more deterministic JSON
+            top_p: 0.9,
+            num_predict: 256,  // cap tokens — we only need a small JSON object
+          }
+        })
+      });
+      clearTimeout(tid);
+
+      if (res.status === 404) {
+        setError(`Model "${model}" not found. Run: ollama pull ${model}`);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`Ollama HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+
+      if (!data.response) {
+        throw new Error('Ollama returned empty response field');
+      }
+
+      // Pipeline: sanitize → extract → parse → validate
+      const sanitized  = sanitizeModelResponse(data.response);
+      const jsonString = extractJsonObject(sanitized);
+      const raw        = JSON.parse(jsonString);
+      parsed           = validateAgainstSchema(raw);
+      break; // success — exit retry loop
+
+    } catch (err) {
+      clearTimeout(tid);
+      lastError = err;
+
+      if (err.name === 'AbortError') {
+        setError(`Timed out after ${OLLAMA_TIMEOUT_MS/1000}s. Model may be loading — try again in a moment.`);
+        return;
+      }
+      if (attempt === 2) break; // both attempts failed, fall through to error display
+      // else loop for attempt 2
+    }
+  }
+
+  // ── Handle final failure ───────────────────────────────────────────────────
+  if (!parsed) {
+    const msg = lastError?.message || 'Unknown error';
+    // Classify the error for human-readable feedback
+    if (msg.includes('No JSON') || msg.includes('Unbalanced') || msg.includes('JSON.parse') || msg.includes('parse')) {
+      setError(`Invalid JSON from model after 2 attempts. Try switching to a larger model (llama3, mistral).`);
+    } else if (msg.includes('omitted required') || msg.includes('Invalid type')) {
+      setError(`Schema mismatch: ${msg}. Try switching to llama3 or mistral.`);
+    } else if (msg.includes('HTTP')) {
+      setError(`Ollama error: ${msg}`);
+    } else {
+      setError(`Error: ${msg}`);
+    }
+    return;
+  }
+
+  // ── Success ────────────────────────────────────────────────────────────────
+  _aiParsed = parsed;
+  status.classList.remove('visible');
+  resultBox.classList.add('visible');
+  document.getElementById('ai-result-content').innerHTML = `
+    <div class="ai-result-label">Ontology node — review before adding</div>
+    <div class="ai-field-preview" style="margin-bottom:6px">
+      <strong>${parsed.key}</strong>
+      <span style="font-size:10px;background:var(--bg4);border:1px solid var(--border);border-radius:3px;padding:1px 5px;margin-left:6px;font-family:var(--mono)">${parsed.type}</span>
+    </div>
+    <div class="ai-field-preview">
+      <span style="color:var(--text3)">relation</span> &nbsp;${parsed.relation} → ${parsed.target}
+    </div>
+    <div class="ai-field-preview" style="margin-top:8px;font-style:italic;color:var(--text2)">${parsed.definition}</div>
+    ${parsed.aliases.length ? `<div class="ai-field-preview" style="margin-top:4px"><span style="color:var(--text3)">aliases</span> &nbsp;${parsed.aliases.join(', ')}</div>` : ''}
+  `;
+  acceptBtn.style.display = 'inline-flex';
+}
+
+function acceptAIResult() {
+  if (!_aiParsed) return;
+  const {key, type, relation, target, definition, aliases} = _aiParsed;
+  const node = {type, relation, target, definition};
+  if (aliases && aliases.length) node.aliases = aliases;
+  injectOntologyNode(key, node);
+  closeDefineModal();
+}
+
+// ── Manual Define ────────────────────────────────────────────────────────────
+
+function acceptManualResult() {
+  const key = document.getElementById('m-key').value.trim()
+    .toLowerCase().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-');
+  const def = document.getElementById('m-def').value.trim();
+  const type = document.getElementById('m-type').value;
+  const relation = document.getElementById('m-relation').value;
+  const target = document.getElementById('m-target').value.trim()
+    .toLowerCase().replace(/\s+/g,'-') || 'concept';
+  const aliasRaw = document.getElementById('m-aliases').value.trim();
+  const aliases = aliasRaw ? aliasRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+
+  if (!key) { toast('Key is required'); return; }
+  if (!def)  { toast('Definition is required'); return; }
+
+  const node = {type, relation, target, definition: def};
+  if (aliases.length) node.aliases = aliases;
+  injectOntologyNode(key, node);
+  closeDefineModal();
+}
+
+// ── Shared injection ─────────────────────────────────────────────────────────
+
+function injectOntologyNode(key, node) {
+  if (!KNW) return;
+  if (!KNW.ontology) KNW.ontology = {};
+
+  if (KNW.ontology[key]) {
+    if (!confirm(`"${key}" already exists in the ontology. Replace it?`)) return;
+  }
+
+  KNW.ontology[key] = node;
+
+  // re-render ontology sidebar
+  renderOntology(KNW.ontology);
+
+  // inject term span into editor for this new key live (first occurrence only)
+  injectTermSpanInEditor(key, node);
+
+  // focus the new card
+  setTimeout(() => {
+    focusOntologyNode(key);
+    const card = document.querySelector(`.onto-card[data-key="${key}"]`);
+    if (card) card.classList.add('onto-card-new');
+  }, 50);
+
+  toast(`"${key}" added to ontology`);
+}
+
+function injectTermSpanInEditor(key, node) {
+  const ed = document.getElementById('editor');
+  const phrases = [key.replace(/-/g,' '), key];
+  if (node.aliases) phrases.push(...node.aliases);
+
+  // walk text nodes and wrap first matching phrase
+  phrases.sort((a,b) => b.length - a.length);
+  for (const phrase of phrases) {
+    if (!phrase || phrase.length < 2) continue;
+    if (wrapFirstTextOccurrence(ed, phrase, key)) break;
+  }
+}
+
+function wrapFirstTextOccurrence(root, phrase, key) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    // skip inside existing spans
+    if (node.parentElement.closest('.term, .hl-y, .hl-g, .hl-p')) continue;
+    const idx = node.textContent.toLowerCase().indexOf(phrase.toLowerCase());
+    if (idx === -1) continue;
+    const before = node.textContent.slice(0, idx);
+    const match  = node.textContent.slice(idx, idx + phrase.length);
+    const after  = node.textContent.slice(idx + phrase.length);
+    const span = document.createElement('span');
+    span.className = 'term';
+    span.dataset.key = key;
+    span.textContent = match;
+    const parent = node.parentNode;
+    const ref = node.nextSibling;
+    parent.removeChild(node);
+    if (before) parent.insertBefore(document.createTextNode(before), ref);
+    parent.insertBefore(span, ref);
+    if (after)  parent.insertBefore(document.createTextNode(after), ref);
+    return true;
+  }
+  return false;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+{
+  "format": "knw/1.0",
+  "id": "nuvei-investment-thesis",
+  "content": "# Nuvei — Investment Thesis\n\nNuvei is a Montreal-based payments infrastructure company serving merchants in 200+ markets. The core thesis is that Nuvei's modular platform creates compounding switching costs as merchants activate more modules over time.\n\nThe DCF suggests ~$8.2B fair value assuming 12% terminal revenue growth and 28% EBITDA margins, versus the Advent International take-private at $6.3B. The spread implies meaningful upside if margin expansion targets are met.\n\nKey risk: the integration of Paya and Till Payments introduces execution risk. The regulated gaming vertical — roughly 20% of revenue — is also exposed to regulatory shifts in key markets.",
+  "ontology": {
+    "nuvei": {
+      "type": "entity",
+      "relation": "isA",
+      "target": "payments-platform",
+      "definition": "Montreal-based global payments technology company. Founded 2003. Processed $203B in total volume in FY2023.",
+      "external": "https://www.wikidata.org/wiki/Q107390561"
+    },
+    "payments-infrastructure": {
+      "type": "concept",
+      "relation": "enables",
+      "target": "commerce",
+      "definition": "The systems, rails, and APIs that move money between buyers and sellers across geographies and currencies."
+    },
+    "modular-platform": {
+      "type": "concept",
+      "relation": "opposes",
+      "target": "bundled-saas",
+      "definition": "Architecture where acquiring, issuing, payouts, and fraud modules can be enabled independently — reducing switching cost and time-to-market for merchants."
+    },
+    "dcf-valuation": {
+      "type": "method",
+      "relation": "quantifies",
+      "target": "intrinsic-value",
+      "definition": "Discounted Cash Flow — projects free cash flows and discounts to present value using WACC. Sensitive to terminal growth rate and margin assumptions.",
+      "aliases": ["dcf", "discounted cash flow"]
+    },
+    "advent-international": {
+      "type": "entity",
+      "relation": "partOf",
+      "target": "nuvei",
+      "definition": "Global private equity firm. Took Nuvei private at $6.3B enterprise value in 2024 — a 34% premium to the 30-day VWAP."
+    },
+    "integration-risk": {
+      "type": "concept",
+      "relation": "causes",
+      "target": "execution-risk",
+      "definition": "Complexity introduced by the acquisition of Paya ($1.3B, 2023) and Till Payments (2024). Historical payments M&A takes 18-24 months to realise synergies."
+    },
+    "regulated-gaming": {
+      "type": "concept",
+      "relation": "correlates",
+      "target": "regulatory-risk",
+      "definition": "Nuvei's regulated gaming vertical represents ~20% of revenue. Exposed to jurisdiction-by-jurisdiction licensing in key markets including US, UK, and Ontario."
+    }
+  },
+  "embeddings": [0.231, 0.847, 0.102, 0.445, 0.318, 0.671, 0.094, 0.523],
+  "memory": {
+    "created": "2026-06-04T10:00:00Z",
+    "last_read": "2026-06-04T14:22:00Z",
+    "read_count": 3,
+    "linked_files": [
+      "payments-sector-overview",
+      "ca-cib-markets-research",
+      "advent-international-pe-profile"
+    ],
+    "delta": [
+      {
+        "type": "contradiction",
+        "file": "payments-sector-overview",
+        "note": "DCF terminal growth assumption differs — 12% here vs 9% in sector overview. Review which is more defensible.",
+        "resolved": false
+      },
+      {
+        "type": "extension",
+        "file": "ca-cib-markets-research",
+        "note": "Regulated gaming regulatory risk analysis here extends the market risk section from CA CIB prep notes.",
+        "resolved": true
+      }
+    ]
+  }
+}

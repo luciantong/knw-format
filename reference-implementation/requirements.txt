@@ -1,0 +1,11 @@
+pytest>=7.0
+pytest-cov>=4.0
+
+# Optional — for local embeddings (privacy-first, no API key)
+# sentence-transformers>=2.2
+
+# Optional — for OpenAI embeddings
+# openai>=1.0
+
+# Optional — for Anthropic ontology extraction
+# anthropic>=0.20
